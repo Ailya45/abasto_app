@@ -1,34 +1,161 @@
+import 'package:abasto_app/domain/entities/venta.dart';
+import 'package:abasto_app/presentation/providers/facturacion/facturacion_provider.dart';
 import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class ResumenPagoPanel extends StatefulWidget {
+class ResumenPagoPanel extends ConsumerStatefulWidget {
   const ResumenPagoPanel({super.key});
 
   @override
-  State<ResumenPagoPanel> createState() => _ResumenPagoPanelState();
+  ConsumerState<ResumenPagoPanel> createState() => _ResumenPagoPanelState();
 }
 
-class _ResumenPagoPanelState extends State<ResumenPagoPanel> {
-  String? metodoSeleccionado;
+class _ResumenPagoPanelState extends ConsumerState<ResumenPagoPanel> {
+  final TextEditingController _montoRecibidoController =
+      TextEditingController();
+  final TextEditingController _precioBsController = TextEditingController();
+  final TextEditingController _precioBsIvaController = TextEditingController();
+  final TextEditingController _vueltoController = TextEditingController();
+
+  static const List<String> _metodosPago = [
+    'Efectivo',
+    'Biopago',
+    'Tarjeta de debito',
+    'Tarjeta de credito',
+    'Pago movil',
+  ];
+
+  @override
+  void dispose() {
+    _montoRecibidoController.dispose();
+    _precioBsController.dispose();
+    _precioBsIvaController.dispose();
+    _vueltoController.dispose();
+    super.dispose();
+  }
+
+  bool get _esEfectivo => state.metodoPago == 'Efectivo';
+
+  FacturacionState get state => ref.watch(facturacionProvider);
+
+  double get _montoRecibido =>
+      double.tryParse(_montoRecibidoController.text.replaceAll(',', '.')) ?? 0;
+
+  double get _vuelto => _esEfectivo ? _montoRecibido - state.totalBsIva : 0;
+
+  bool get _puedeFinalizar =>
+      state.items.isNotEmpty &&
+      state.metodoPago != null &&
+      state.tasaDolar > 0 &&
+      (!_esEfectivo || (_montoRecibido >= state.totalBsIva && _montoRecibido > 0));
+
+  /// Actualiza el texto de un campo de solo lectura sin crear controladores en cada build.
+  TextBox _textoBs(
+    TextEditingController controller,
+    double valor, {
+    required String placeholder,
+  }) {
+    final texto = valor == 0 ? '' : 'Bs. ${valor.toStringAsFixed(2)}';
+    if (controller.text != texto) {
+      controller.text = texto;
+    }
+    return TextBox(
+      controller: controller,
+      placeholder: placeholder,
+      readOnly: true,
+    );
+  }
+
+  Future<void> _finalizarVenta() async {
+    final esEfectivo = _esEfectivo;
+    final monto = esEfectivo ? _montoRecibido : state.totalBsIva;
+
+    try {
+      final venta = await ref
+          .read(facturacionProvider.notifier)
+          .finalizarVenta(montoRecibido: monto);
+      _montoRecibidoController.clear();
+
+      if (mounted) {
+        _mostrarResultadoVenta(venta, monto, esEfectivo);
+      }
+    } catch (e) {
+      if (mounted) {
+        displayInfoBar(
+          context,
+          builder: (context, close) {
+            return InfoBar(
+              title: const Text('Error'),
+              content: Text(e.toString()),
+              severity: InfoBarSeverity.error,
+              action: IconButton(
+                icon: const Icon(FluentIcons.clear),
+                onPressed: close,
+              ),
+            );
+          },
+        );
+      }
+    }
+  }
+
+  void _mostrarResultadoVenta(Venta venta, double montoRecibido, bool esEfectivo) {
+    final vuelto = montoRecibido - venta.montoTotalDolar * venta.tasaDolarUsada * 1.16;
+    final mostrarVuelto = esEfectivo && vuelto > 0;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return ContentDialog(
+          title: const Text('Venta registrada'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Método de pago: ${venta.metodoPago}',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Total a pagar: Bs. '
+                '${(venta.montoTotalDolar * venta.tasaDolarUsada * 1.16).toStringAsFixed(2)}',
+              ),
+              if (mostrarVuelto) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Monto recibido: Bs. ${montoRecibido.toStringAsFixed(2)}',
+                ),
+                Text(
+                  'Vuelto: Bs. ${vuelto.toStringAsFixed(2)}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            FilledButton(
+              child: const Text('Cerrar'),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _buildTotalPagar(context),
-
         Expanded(child: _buildResumenPagar(context)),
       ],
     );
   }
 
   Container _buildResumenPagar(BuildContext context) {
-    List<String> metodosPago = [
-      'Efectivo',
-      'Biopago',
-      'Tarjeta de debito',
-      'Tarjeta de credito',
-      'Pago movil',
-    ];
     return Container(
       padding: EdgeInsets.all(24),
       margin: const EdgeInsets.all(8.0),
@@ -43,61 +170,97 @@ class _ResumenPagoPanelState extends State<ResumenPagoPanel> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
-          Text(
-            textAlign: TextAlign.center,
-            'Resumen y Pago:',
-            style: FluentTheme.of(
-              context,
-            ).typography.bodyStrong?.copyWith(fontSize: 24),
-          ),
-          SizedBox(height: 24),
-          InfoLabel(
-            label: 'Metodo de pago:',
-            child: ComboBox<String>(
-              value: metodoSeleccionado,
-              placeholder: Text("Seleccione un metodo de pago"),
-              items: metodosPago.map((metPago) {
-                return ComboBoxItem(value: metPago, child: Text(metPago));
-              }).toList(),
-              onChanged: (value) {
-                setState(() {
-                  metodoSeleccionado = value;
-                });
-              },
+            Text(
+              textAlign: TextAlign.center,
+              'Resumen y Pago:',
+              style: FluentTheme.of(
+                context,
+              ).typography.bodyStrong?.copyWith(fontSize: 24),
             ),
-          ),
-          SizedBox(height: 24),
-          InfoLabel(
-            label: 'Precio en Bs:',
-            child: TextBox(placeholder: 'Bs. 0.00'),
-          ),
-          SizedBox(height: 16),
-
-          InfoLabel(
-            label: 'Precio en Bs + IVA:',
-            child: TextBox(placeholder: 'Bs. 0.00', readOnly: true),
-          ),
-          SizedBox(height: 16),
-
-          InfoLabel(
-            label: 'Total a pagar en Bs:',
-            child: TextBox(placeholder: 'Bs. 0.00'),
-          ),
-
-          SizedBox(height: 40),
-
-          FilledButton(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(FluentIcons.payment_card),
-                SizedBox(width: 8),
-                Text("Finalizar Venta"),
-              ],
+            const SizedBox(height: 24),
+            InfoLabel(
+              label: 'Metodo de pago:',
+              child: ComboBox<String>(
+                value: state.metodoPago,
+                placeholder: const Text('Seleccione un metodo de pago'),
+                items: _metodosPago.map((metPago) {
+                  return ComboBoxItem(value: metPago, child: Text(metPago));
+                }).toList(),
+                onChanged: (value) {
+                  ref
+                      .read(facturacionProvider.notifier)
+                      .setMetodoPago(value);
+                },
+              ),
             ),
-            onPressed: () {},
-          ),
-        ],
+            const SizedBox(height: 24),
+            InfoLabel(
+              label: 'Precio en Bs:',
+              child: _textoBs(
+                _precioBsController,
+                state.totalBs,
+                placeholder: 'Bs. 0.00',
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            InfoLabel(
+              label: 'Precio en Bs + IVA:',
+              child: _textoBs(
+                _precioBsIvaController,
+                state.totalBsIva,
+                placeholder: 'Bs. 0.00',
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            InfoLabel(
+              label: 'Total a pagar en Bs:',
+              child: _textoBs(
+                _precioBsIvaController,
+                state.totalBsIva,
+                placeholder: 'Bs. 0.00',
+              ),
+            ),
+
+            if (_esEfectivo) ...[
+              const SizedBox(height: 16),
+              InfoLabel(
+                label: 'Monto recibido (Bs):',
+                child: TextBox(
+                  controller: _montoRecibidoController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  placeholder: 'Bs. 0.00',
+                  onChanged: (value) => setState(() {}),
+                ),
+              ),
+              const SizedBox(height: 16),
+              InfoLabel(
+                label: 'Vuelto:',
+                child: _textoBs(
+                  _vueltoController,
+                  _montoRecibido >= state.totalBsIva ? _vuelto : 0,
+                  placeholder: 'Bs. 0.00',
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 40),
+
+            FilledButton(
+              onPressed: _puedeFinalizar ? _finalizarVenta : null,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(FluentIcons.payment_card),
+                  SizedBox(width: 8),
+                  Text("Finalizar Venta"),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -122,7 +285,7 @@ class _ResumenPagoPanelState extends State<ResumenPagoPanel> {
             ).typography.bodyStrong?.copyWith(fontSize: 24),
           ),
           Text(
-            "Bs. 0.00",
+            "\$ ${state.totalDolar.toStringAsFixed(2)}",
             style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
               fontSize: 48,
               fontWeight: FontWeight.bold,

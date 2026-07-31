@@ -1,4 +1,5 @@
 import 'package:abasto_app/presentation/screens/facturacion/facturacion_screen.dart';
+import 'package:abasto_app/presentation/screens/facturacion/historial_ventas.dart';
 import 'package:abasto_app/presentation/screens/inventario/agregar_producto.dart';
 import 'package:abasto_app/presentation/screens/inventario/historial_inventario.dart';
 import 'package:abasto_app/presentation/screens/inventario/inventario.dart';
@@ -44,10 +45,21 @@ class _MainLayoutState extends State<MainLayout> {
             onChanged: (index) => setState(() => _currentIndex = index),
             displayMode: PaneDisplayMode.compact,
             items: [
-              PaneItem(
+              PaneItemExpander(
                 icon: const Icon(FluentIcons.payment_card),
                 title: const Text('Facturación'),
-                body: FacturacionScreen(),
+                items: [
+                  PaneItem(
+                    icon: const Icon(FluentIcons.add_to_shopping_list),
+                    title: const Text('Nueva Venta'),
+                    body: FacturacionScreen(),
+                  ),
+                  PaneItem(
+                    icon: const Icon(FluentIcons.view),
+                    title: const Text('Historial de Ventas'),
+                    body: const HistorialVentasScreen(),
+                  ),
+                ],
               ),
               PaneItemExpander(
                 icon: const Icon(FluentIcons.product_variant),

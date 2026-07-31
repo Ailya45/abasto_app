@@ -5,12 +5,14 @@ class TableColumn<T> {
   final String title;
   final double? width; // Ancho fijo opcional
   final int flex; // Proporción de ancho (como en Expanded)
+  final TextAlign? titleTextAlign; // Alineación del título (por defecto: izquierda)
   final Widget Function(T item) cellBuilder;
 
   TableColumn({
     required this.title,
     this.width,
     this.flex = 1,
+    this.titleTextAlign,
     required this.cellBuilder,
   });
 }
@@ -19,12 +21,14 @@ class CustomTableWidget<T> extends StatelessWidget {
   final List<T> items;
   final List<TableColumn<T>> columns;
   final String mensajeVacio;
+  final EdgeInsets rowPadding;
 
   const CustomTableWidget({
     super.key,
     required this.items,
     required this.columns,
     this.mensajeVacio = 'No hay datos disponibles',
+    this.rowPadding = const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
   });
 
   @override
@@ -37,7 +41,12 @@ class CustomTableWidget<T> extends StatelessWidget {
       children: [
         // 1. ENCABEZADO DE LA TABLA
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          padding: EdgeInsets.only(
+            left: rowPadding.left,
+            top: 10,
+            right: rowPadding.right,
+            bottom: 10,
+          ),
           decoration: BoxDecoration(
             color: FluentTheme.of(context).resources.subtleFillColorSecondary,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
@@ -47,10 +56,11 @@ class CustomTableWidget<T> extends StatelessWidget {
               final headerWidget = Text(
                 col.title,
                 style: FluentTheme.of(context).typography.bodyStrong,
+                textAlign: col.titleTextAlign ?? TextAlign.start,
               );
 
               final paddingWidget = Padding(
-                padding: const EdgeInsets.only(right: 12),
+                padding: const EdgeInsets.only(right: 16),
                 child: headerWidget,
               );
 
@@ -75,7 +85,7 @@ class CustomTableWidget<T> extends StatelessWidget {
               final item = items[index];
 
               return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: rowPadding,
                 child: Row(
                   children: columns.map((col) {
                     final cellWidget = col.cellBuilder(item);
