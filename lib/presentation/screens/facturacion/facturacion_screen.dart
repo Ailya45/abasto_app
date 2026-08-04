@@ -12,6 +12,7 @@ class FacturacionScreen extends ConsumerStatefulWidget {
 }
 
 class _FacturacionScreenState extends ConsumerState<FacturacionScreen> {
+  final FocusNode _lectorFocusNode = FocusNode();
   final TextEditingController _tasaController = TextEditingController();
 
   @override
@@ -30,6 +31,7 @@ class _FacturacionScreenState extends ConsumerState<FacturacionScreen> {
   @override
   void dispose() {
     _tasaController.dispose();
+    _lectorFocusNode.dispose();
     super.dispose();
   }
 
@@ -88,10 +90,13 @@ class _FacturacionScreenState extends ConsumerState<FacturacionScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // PANEL IZQUIERDO: La Tabla (70% del espacio)
-          const PanelTablaFacturacion(),
+          PanelTablaFacturacion(busquedaFocusNode: _lectorFocusNode),
 
           // PANEL DERECHO: Espacio para los Totales y Pago (30% del espacio)
-          Expanded(flex: 3, child: ResumenPagoPanel()),
+          Expanded(
+            flex: 3,
+            child: ResumenPagoPanel(busquedaFocusNode: _lectorFocusNode),
+          ),
         ],
       ),
     );

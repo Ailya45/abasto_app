@@ -203,10 +203,33 @@ void main() {
     test('cambiarCantidad respeta el stock', () async {
       await provider.buscarYAgregar('222');
 
-      expect(
-        () => provider.cambiarCantidad('222', 3),
-        throwsException,
+      await provider.cambiarCantidad('222', 3);
+
+      expect(provider.state.items.first.cantidadVendida, 3);
+      expect(provider.state.items.first.subTotal, 6);
+      expect(provider.state.hayStockInsuficiente, isTrue);
+    });
+
+    test('hayStockInsuficiente es false con stock suficiente', () async {
+      await provider.buscarYAgregar('222');
+
+      expect(provider.state.hayStockInsuficiente, isFalse);
+    });
+
+    test('hayStockInsuficiente ignora items sin stockDisponible', () {
+      final state = FacturacionState(
+        items: [
+          Facturacion(
+            productoCodigo: '111',
+            productoNombre: 'Harina',
+            precioUnitario: 10,
+            cantidadVendida: 50,
+            subTotal: 500,
+          ),
+        ],
       );
+
+      expect(state.hayStockInsuficiente, isFalse);
     });
 
     test('eliminarItem quita el producto', () async {
@@ -241,6 +264,8 @@ void main() {
       expect(repository.detalleGuardado, hasLength(1));
       expect(provider.state.items, isEmpty);
       expect(provider.state.metodoPago, isNull);
+      // La tasa se conserva para la siguiente venta
+      expect(provider.state.tasaDolar, 100);
     });
 
     test('finalizarVenta valida que haya productos', () async {
@@ -266,6 +291,19 @@ void main() {
 
       expect(
         () => provider.finalizarVenta(montoRecibido: 100),
+        throwsException,
+      );
+    });
+
+    test('finalizarVenta rechaza stock insuficiente', () async {
+      provider.setTasaDolar(100);
+      provider.setMetodoPago('Efectivo');
+      await provider.buscarYAgregar('222');
+      await provider.cambiarCantidad('222', 3);
+
+      expect(provider.state.hayStockInsuficiente, isTrue);
+      expect(
+        () => provider.finalizarVenta(montoRecibido: 1000),
         throwsException,
       );
     });

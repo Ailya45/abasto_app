@@ -43,6 +43,12 @@ class FacturacionState {
 
   double get totalBsIva => totalBs + iva;
 
+  /// Indica si algún producto de la venta tiene una cantidad mayor al stock
+  /// disponible. Con `stockDisponible` null (detalles históricos) se ignora.
+  bool get hayStockInsuficiente => items.any(
+    (item) => item.cantidadVendida > (item.stockDisponible ?? item.cantidadVendida),
+  );
+
   FacturacionState copyWith({
     List<Facturacion>? items,
     double? tasaDolar,
@@ -132,6 +138,7 @@ class FacturacionProvider extends StateNotifier<FacturacionState> {
           precioUnitario: producto.price,
           cantidadVendida: 1,
           subTotal: producto.price,
+          stockDisponible: producto.stock,
         ),
       );
     } else {
@@ -159,13 +166,6 @@ class FacturacionProvider extends StateNotifier<FacturacionState> {
     if (index == -1) return;
 
     final item = items[index];
-    final producto = await localRepositoryProivder.getProductByBarcode(codigo);
-    if (producto != null && cantidad > producto.stock) {
-      throw Exception(
-        'Stock insuficiente de ${producto.name} (disponible: ${producto.stock})',
-      );
-    }
-
     items[index] = item.copyWith(
       cantidadVendida: cantidad,
       subTotal: item.precioUnitario * cantidad,
@@ -191,6 +191,9 @@ class FacturacionProvider extends StateNotifier<FacturacionState> {
     if (state.tasaDolar <= 0) {
       throw Exception('Ingrese la tasa del dólar');
     }
+    if (state.hayStockInsuficiente) {
+      throw Exception('Hay productos con stock insuficiente');
+    }
 
     final venta = Venta(
       id: const Uuid().v4(),
@@ -206,7 +209,8 @@ class FacturacionProvider extends StateNotifier<FacturacionState> {
       detalle: state.items,
     );
 
-    state = const FacturacionState();
+    // Se conserva la tasa para la siguiente venta (se limpian items y método)
+    state = FacturacionState(tasaDolar: state.tasaDolar);
     return venta;
   }
 }

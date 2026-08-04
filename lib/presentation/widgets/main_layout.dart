@@ -1,6 +1,8 @@
 import 'package:abasto_app/presentation/screens/facturacion/facturacion_screen.dart';
 import 'package:abasto_app/presentation/screens/facturacion/historial_ventas.dart';
+import 'package:abasto_app/presentation/screens/configuracion/configuracion_screen.dart';
 import 'package:abasto_app/presentation/screens/inventario/agregar_producto.dart';
+import 'package:abasto_app/presentation/screens/inventario/categorias.dart';
 import 'package:abasto_app/presentation/screens/inventario/historial_inventario.dart';
 import 'package:abasto_app/presentation/screens/inventario/inventario.dart';
 import 'package:fluent_ui/fluent_ui.dart';
@@ -85,9 +87,7 @@ class _MainLayoutState extends State<MainLayout> {
                   PaneItem(
                     icon: const Icon(FluentIcons.category_classification),
                     title: const Text('Categorias'),
-                    body: const Center(
-                      child: Text('Categoria de los productos del inventario'),
-                    ),
+                    body: const CategoriasScreen(),
                   ),
               ])
             ],
@@ -95,7 +95,7 @@ class _MainLayoutState extends State<MainLayout> {
               PaneItem(
                 icon: const Icon(FluentIcons.settings),
                 title: const Text('Configuración'),
-                body: const Center(child: Text('Pantalla de Configuración')),
+                body: const ConfiguracionScreen(),
               ),
             ],
           ),

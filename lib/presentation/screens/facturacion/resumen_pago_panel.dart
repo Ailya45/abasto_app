@@ -1,10 +1,12 @@
 import 'package:abasto_app/domain/entities/venta.dart';
 import 'package:abasto_app/presentation/providers/facturacion/facturacion_provider.dart';
+import 'package:abasto_app/presentation/widgets/glass_card.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class ResumenPagoPanel extends ConsumerStatefulWidget {
-  const ResumenPagoPanel({super.key});
+  final FocusNode busquedaFocusNode;
+  const ResumenPagoPanel({super.key, required this.busquedaFocusNode});
 
   @override
   ConsumerState<ResumenPagoPanel> createState() => _ResumenPagoPanelState();
@@ -31,6 +33,7 @@ class _ResumenPagoPanelState extends ConsumerState<ResumenPagoPanel> {
     _precioBsController.dispose();
     _precioBsIvaController.dispose();
     _vueltoController.dispose();
+
     super.dispose();
   }
 
@@ -47,7 +50,9 @@ class _ResumenPagoPanelState extends ConsumerState<ResumenPagoPanel> {
       state.items.isNotEmpty &&
       state.metodoPago != null &&
       state.tasaDolar > 0 &&
-      (!_esEfectivo || (_montoRecibido >= state.totalBsIva && _montoRecibido > 0));
+      !state.hayStockInsuficiente &&
+      (!_esEfectivo ||
+          (_montoRecibido >= state.totalBsIva && _montoRecibido > 0));
 
   /// Actualiza el texto de un campo de solo lectura sin crear controladores en cada build.
   TextBox _textoBs(
@@ -77,7 +82,13 @@ class _ResumenPagoPanelState extends ConsumerState<ResumenPagoPanel> {
       _montoRecibidoController.clear();
 
       if (mounted) {
-        _mostrarResultadoVenta(venta, monto, esEfectivo);
+       await _mostrarResultadoVenta(venta, monto, esEfectivo);
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && widget.busquedaFocusNode.canRequestFocus) {
+          widget.busquedaFocusNode.requestFocus();
+        }
+      });
       }
     } catch (e) {
       if (mounted) {
@@ -99,11 +110,16 @@ class _ResumenPagoPanelState extends ConsumerState<ResumenPagoPanel> {
     }
   }
 
-  void _mostrarResultadoVenta(Venta venta, double montoRecibido, bool esEfectivo) {
-    final vuelto = montoRecibido - venta.montoTotalDolar * venta.tasaDolarUsada * 1.16;
+  Future<void> _mostrarResultadoVenta(
+    Venta venta,
+    double montoRecibido,
+    bool esEfectivo,
+  ) async {
+    final vuelto =
+        montoRecibido - venta.montoTotalDolar * venta.tasaDolarUsada * 1.16;
     final mostrarVuelto = esEfectivo && vuelto > 0;
 
-    showDialog(
+    await showDialog(
       context: context,
       builder: (context) {
         return ContentDialog(
@@ -123,9 +139,7 @@ class _ResumenPagoPanelState extends ConsumerState<ResumenPagoPanel> {
               ),
               if (mostrarVuelto) ...[
                 const SizedBox(height: 8),
-                Text(
-                  'Monto recibido: Bs. ${montoRecibido.toStringAsFixed(2)}',
-                ),
+                Text('Monto recibido: Bs. ${montoRecibido.toStringAsFixed(2)}'),
                 Text(
                   'Vuelto: Bs. ${vuelto.toStringAsFixed(2)}',
                   style: const TextStyle(fontWeight: FontWeight.bold),
@@ -136,7 +150,10 @@ class _ResumenPagoPanelState extends ConsumerState<ResumenPagoPanel> {
           actions: [
             FilledButton(
               child: const Text('Cerrar'),
-              onPressed: () => Navigator.pop(context),
+              onPressed: () {
+                Navigator.pop(context);
+                widget.busquedaFocusNode.requestFocus();
+              },
             ),
           ],
         );
@@ -161,10 +178,8 @@ class _ResumenPagoPanelState extends ConsumerState<ResumenPagoPanel> {
       margin: const EdgeInsets.all(8.0),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(9.0),
-        color: FluentTheme.of(context).cardColor,
-        border: Border.all(
-          color: FluentTheme.of(context).resources.solidBackgroundFillColorBase,
-        ),
+        color: glassSurface(context, alpha: 0.45),
+        border: glassBorder(context),
       ),
       child: SingleChildScrollView(
         child: Column(
@@ -187,9 +202,7 @@ class _ResumenPagoPanelState extends ConsumerState<ResumenPagoPanel> {
                   return ComboBoxItem(value: metPago, child: Text(metPago));
                 }).toList(),
                 onChanged: (value) {
-                  ref
-                      .read(facturacionProvider.notifier)
-                      .setMetodoPago(value);
+                  ref.read(facturacionProvider.notifier).setMetodoPago(value);
                 },
               ),
             ),
@@ -269,12 +282,11 @@ class _ResumenPagoPanelState extends ConsumerState<ResumenPagoPanel> {
   Container _buildTotalPagar(BuildContext context) {
     return Container(
       margin: const EdgeInsets.all(8.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8.0),
-        color: FluentTheme.of(context).cardColor,
-        border: Border.all(
-          color: FluentTheme.of(context).resources.solidBackgroundFillColorBase,
-        ),
+        color: glassSurface(context, alpha: 0.45),
+        border: glassBorder(context),
       ),
       child: Column(
         children: [

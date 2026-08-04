@@ -16,6 +16,16 @@ namespace {
 #define DWMWA_USE_IMMERSIVE_DARK_MODE 20
 #endif
 
+// Window attribute to enable the Windows 11 Mica system backdrop.
+// Redefined in case the developer's machine has a Windows SDK older than
+// version 10.0.22000.0.
+#ifndef DWMWA_SYSTEMBACKDROP_TYPE
+#define DWMWA_SYSTEMBACKDROP_TYPE 38
+#endif
+#ifndef DWMSBT_MAINWINDOW
+#define DWMSBT_MAINWINDOW 2
+#endif
+
 constexpr const wchar_t kWindowClassName[] = L"FLUTTER_RUNNER_WIN32_WINDOW";
 
 /// Registry key for app theme preference.
@@ -51,6 +61,43 @@ void EnableFullDpiSupportIfAvailable(HWND hwnd) {
     enable_non_client_dpi_scaling(hwnd);
   }
   FreeLibrary(user32_module);
+}
+
+// Minimal, layout-compatible definition of RTL_OSVERSIONINFOW (without
+// pulling in winternl.h).
+typedef LONG(WINAPI* RtlGetVersionFn)(void* version_info);
+
+struct OsVersionInfoWin {
+  ULONG dwOSVersionInfoSize;
+  ULONG dwMajorVersion;
+  ULONG dwMinorVersion;
+  ULONG dwBuildNumber;
+  ULONG dwPlatformId;
+  WCHAR szCSDVersion[128];
+};
+
+// Returns true on Windows 11 or later (Mica is available since build 22000).
+bool IsWindows11OrLater() {
+  HMODULE ntdll_module = LoadLibraryW(L"ntdll.dll");
+  if (!ntdll_module) {
+    return false;
+  }
+  auto rtl_get_version =
+      reinterpret_cast<RtlGetVersionFn>(GetProcAddress(ntdll_module,
+                                                       "RtlGetVersion"));
+  if (rtl_get_version == nullptr) {
+    FreeLibrary(ntdll_module);
+    return false;
+  }
+  OsVersionInfoWin info{};
+  info.dwOSVersionInfoSize = sizeof(info);
+  // RtlGetVersion returns STATUS_SUCCESS (0) on success.
+  if (rtl_get_version(&info) != 0) {
+    FreeLibrary(ntdll_module);
+    return false;
+  }
+  FreeLibrary(ntdll_module);
+  return info.dwBuildNumber >= 22000;
 }
 
 }  // namespace
@@ -145,6 +192,13 @@ bool Win32Window::Create(const std::wstring& title,
   }
 
   UpdateTheme(window);
+
+  // Enable the Windows 11 Mica backdrop (ignored silently on older systems).
+  if (IsWindows11OrLater()) {
+    DWORD backdrop_type = DWMSBT_MAINWINDOW;
+    DwmSetWindowAttribute(window, DWMWA_SYSTEMBACKDROP_TYPE, &backdrop_type,
+                          sizeof(backdrop_type));
+  }
 
   return OnCreate();
 }

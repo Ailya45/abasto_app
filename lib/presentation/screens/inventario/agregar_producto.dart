@@ -1,6 +1,7 @@
 import 'package:abasto_app/domain/entities/product.dart';
 import 'package:abasto_app/presentation/providers/productos/product_provider.dart';
 import 'package:abasto_app/presentation/widgets/custom_form_widget.dart';
+import 'package:abasto_app/presentation/widgets/glass_card.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -26,8 +27,8 @@ class _AgregarProductoState extends ConsumerState<AgregarProducto> {
     'Sin categoría',
     'Licores',
     'Víveres',
-    'Lácteos',
     'Limpieza',
+    'Aseo personal',
     'Snacks',
   ];
 
@@ -113,19 +114,12 @@ class _AgregarProductoState extends ConsumerState<AgregarProducto> {
         child: Container(
           padding: const EdgeInsets.all(16.0),
           decoration: BoxDecoration(
-            border: Border.all(
-              color: FluentTheme.of(context).resources.solidBackgroundFillColorTertiary,
-            ),
-            color: FluentTheme.of(context).resources.solidBackgroundFillColorQuinary,
+            border: glassBorder(context),
+            color: glassSurface(context, alpha: 0.55),
             borderRadius: BorderRadius.circular(8),
             boxShadow: [
               BoxShadow(
-                color: FluentTheme.of(context).shadowColor.withValues(
-                  alpha: 0.1,
-                  red: 0.5,
-                  green: 0.5,
-                  blue: 0.5,
-                ),
+                color: FluentTheme.of(context).shadowColor.withValues(alpha: 0.1),
                 blurRadius: 10,
                 offset: const Offset(0, 2),
               ),

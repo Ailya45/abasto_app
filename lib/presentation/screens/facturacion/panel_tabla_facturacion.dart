@@ -1,11 +1,14 @@
 import 'package:abasto_app/domain/entities/facturacion.dart';
 import 'package:abasto_app/presentation/providers/facturacion/facturacion_provider.dart';
 import 'package:abasto_app/presentation/widgets/custom_table_widget.dart';
+import 'package:abasto_app/presentation/widgets/glass_card.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class PanelTablaFacturacion extends ConsumerStatefulWidget {
-  const PanelTablaFacturacion({super.key});
+  final FocusNode busquedaFocusNode;
+
+  const PanelTablaFacturacion({super.key, required this.busquedaFocusNode});
 
   @override
   ConsumerState<PanelTablaFacturacion> createState() =>
@@ -19,6 +22,11 @@ class _PanelTablaFacturacionState extends ConsumerState<PanelTablaFacturacion> {
   void initState() {
     super.initState();
     _busquedaController.addListener(_onBusquedaChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        widget.busquedaFocusNode.requestFocus();
+      }
+    });
   }
 
   void _onBusquedaChanged() {
@@ -31,13 +39,24 @@ class _PanelTablaFacturacionState extends ConsumerState<PanelTablaFacturacion> {
     super.dispose();
   }
 
+  void _refocusBusqueda() {
+    Future.microtask(() {
+      if (mounted && widget.busquedaFocusNode.canRequestFocus) {
+        widget.busquedaFocusNode.requestFocus();
+      }
+    });
+  }
+
   Future<void> _agregarProducto(String query) async {
     final texto = query.trim();
     if (texto.isEmpty) return;
 
     try {
       await ref.read(facturacionProvider.notifier).buscarYAgregar(texto);
+
       _busquedaController.clear();
+
+      _refocusBusqueda();
 
       if (mounted) {
         displayInfoBar(
@@ -54,6 +73,35 @@ class _PanelTablaFacturacionState extends ConsumerState<PanelTablaFacturacion> {
           },
         );
       }
+    } catch (e) {
+      _busquedaController.clear();
+
+      _refocusBusqueda();
+
+      if (mounted) {
+        displayInfoBar(
+          context,
+          builder: (context, close) {
+            return InfoBar(
+              title: const Text('Error'),
+              content: Text(e.toString()),
+              severity: InfoBarSeverity.error,
+              action: IconButton(
+                icon: const Icon(FluentIcons.clear),
+                onPressed: close,
+              ),
+            );
+          },
+        );
+      }
+    }
+  }
+
+  Future<void> _quitarProducto(String porductoCodigo) async {
+    try {
+      ref.read(facturacionProvider.notifier).eliminarItem(porductoCodigo);
+
+      _refocusBusqueda();
     } catch (e) {
       if (mounted) {
         displayInfoBar(
@@ -77,27 +125,31 @@ class _PanelTablaFacturacionState extends ConsumerState<PanelTablaFacturacion> {
   Future<void> _cambiarCantidad(Facturacion item, int? cantidad) async {
     if (cantidad == null || cantidad == item.cantidadVendida) return;
 
-    try {
-      await ref
-          .read(facturacionProvider.notifier)
-          .cambiarCantidad(item.productoCodigo, cantidad);
-    } catch (e) {
-      if (mounted) {
-        displayInfoBar(
-          context,
-          builder: (context, close) {
-            return InfoBar(
-              title: const Text('Error'),
-              content: Text(e.toString()),
-              severity: InfoBarSeverity.error,
-              action: IconButton(
-                icon: const Icon(FluentIcons.clear),
-                onPressed: close,
-              ),
-            );
-          },
-        );
-      }
+    await ref
+        .read(facturacionProvider.notifier)
+        .cambiarCantidad(item.productoCodigo, cantidad);
+
+    _refocusBusqueda();
+
+    final stockDisponible = item.stockDisponible;
+    if (mounted && stockDisponible != null && cantidad > stockDisponible) {
+      displayInfoBar(
+        context,
+        builder: (context, close) {
+          return InfoBar(
+            title: const Text('Stock insuficiente'),
+            content: Text(
+              '${item.productoNombre}: solo hay $stockDisponible unidades '
+              'disponibles. Corrige la cantidad para finalizar la venta.',
+            ),
+            severity: InfoBarSeverity.warning,
+            action: IconButton(
+              icon: const Icon(FluentIcons.clear),
+              onPressed: close,
+            ),
+          );
+        },
+      );
     }
   }
 
@@ -110,14 +162,12 @@ class _PanelTablaFacturacionState extends ConsumerState<PanelTablaFacturacion> {
       child: Column(
         children: [
           Container(
-            margin: const EdgeInsets.symmetric(
-              horizontal: 8.0,
-              vertical: 8.0,
-            ),
+            margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
             child: TextBox(
               controller: _busquedaController,
               placeholder: 'Buscar Producto por código de barras',
               autofocus: true,
+              focusNode: widget.busquedaFocusNode,
               prefix: const Icon(FluentIcons.search),
               suffix: _busquedaController.text.isEmpty
                   ? null
@@ -134,10 +184,16 @@ class _PanelTablaFacturacionState extends ConsumerState<PanelTablaFacturacion> {
           Expanded(
             child: Container(
               margin: const EdgeInsets.all(8.0),
-              color: FluentTheme.of(context).cardColor,
+              decoration: BoxDecoration(
+                color: glassSurface(context, alpha: 0.40),
+                borderRadius: BorderRadius.circular(8),
+                border: glassBorder(context),
+              ),
+              clipBehavior: Clip.antiAlias,
               child: CustomTableWidget<Facturacion>(
                 items: items,
-                mensajeVacio: 'Escanea o escribe un código de barras para iniciar la venta',
+                mensajeVacio:
+                    'Escanea o escribe un código de barras para iniciar la venta',
                 columns: [
                   // Columna 1: Código
                   TableColumn(
@@ -158,9 +214,8 @@ class _PanelTablaFacturacionState extends ConsumerState<PanelTablaFacturacion> {
                   TableColumn(
                     title: 'P. Unitario',
                     flex: 2,
-                    cellBuilder: (item) => Text(
-                      '\$ ${item.precioUnitario.toStringAsFixed(2)}',
-                    ),
+                    cellBuilder: (item) =>
+                        Text('\$ ${item.precioUnitario.toStringAsFixed(2)}'),
                   ),
                   // Columna 4: Cantidad
                   TableColumn(
@@ -175,6 +230,7 @@ class _PanelTablaFacturacionState extends ConsumerState<PanelTablaFacturacion> {
                           min: 1,
                           max: 999,
                           onChanged: (value) => _cambiarCantidad(item, value),
+                          onEditingComplete: _refocusBusqueda,
                           mode: SpinButtonPlacementMode.none,
                           style: FluentTheme.of(
                             context,
@@ -200,9 +256,7 @@ class _PanelTablaFacturacionState extends ConsumerState<PanelTablaFacturacion> {
                       children: [
                         IconButton(
                           icon: const Icon(FluentIcons.delete, size: 14),
-                          onPressed: () => ref
-                              .read(facturacionProvider.notifier)
-                              .eliminarItem(item.productoCodigo),
+                          onPressed: () => _quitarProducto(item.productoCodigo),
                         ),
                       ],
                     ),

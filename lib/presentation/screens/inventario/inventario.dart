@@ -2,7 +2,9 @@ import 'package:abasto_app/domain/entities/product.dart';
 import 'package:abasto_app/presentation/providers/inventario/stream_product_provider.dart';
 import 'package:abasto_app/presentation/providers/productos/product_provider.dart';
 import 'package:abasto_app/presentation/screens/inventario/actualizar_stock.dart';
+import 'package:abasto_app/presentation/screens/inventario/editar_precio.dart';
 import 'package:abasto_app/presentation/widgets/custom_table_widget.dart';
+import 'package:abasto_app/presentation/widgets/glass_card.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -43,7 +45,12 @@ class InventarioScreen extends ConsumerWidget {
             ),
           ),
           data: (productos) => Container(
-            decoration: BoxDecoration(color: FluentTheme.of(context).cardColor),
+            decoration: BoxDecoration(
+              color: glassSurface(context, alpha: 0.40),
+              borderRadius: BorderRadius.circular(8),
+              border: glassBorder(context),
+            ),
+            clipBehavior: Clip.antiAlias,
             child: CustomTableWidget<Product>(
               items: productos,
               columns: [
@@ -78,10 +85,15 @@ class InventarioScreen extends ConsumerWidget {
                 // Columna 5: Acciones (Ancho fijo)
                 TableColumn(
                   title: 'Acciones',
-                  width: 100,
+                  width: 140,
                   cellBuilder: (item) => Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      IconButton(
+                        icon: const Icon(FluentIcons.money, size: 14),
+                        onPressed: () =>
+                            _mostrarDialogoEditarPrecio(context, ref, item),
+                      ),
                       IconButton(
                         icon: const Icon(FluentIcons.edit, size: 14),
                         onPressed: () => _mostrarDialogoAjusteStock(context, ref, item),
@@ -152,6 +164,68 @@ class InventarioScreen extends ConsumerWidget {
             },
           );
         }
+      }
+    }
+  }
+
+  Future<void> _mostrarDialogoEditarPrecio(
+    BuildContext context,
+    WidgetRef ref,
+    Product item,
+  ) async {
+    final nuevoPrecio = await showDialog<double>(
+      context: context,
+      builder: (context) => EditarPrecioDialog(
+        nombreProducto: item.name,
+        precioActual: item.price,
+      ),
+    );
+
+    if (nuevoPrecio == null) return;
+
+    try {
+      await ref
+          .read(productProvider.notifier)
+          .updateProduct(item.copyWith(price: nuevoPrecio));
+
+      if (context.mounted) {
+        displayInfoBar(
+          context,
+          builder: (context, close) {
+            return InfoBar(
+              title: const Text('Precio actualizado'),
+              content: Text(
+                'El precio de ${item.name} se actualizó a '
+                '\$ ${nuevoPrecio.toStringAsFixed(2)}.',
+              ),
+              severity: InfoBarSeverity.success,
+              action: IconButton(
+                icon: const Icon(FluentIcons.clear),
+                onPressed: close,
+              ),
+            );
+          },
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          builder: (context) {
+            return ContentDialog(
+              title: const Text('Error'),
+              content: Text(
+                'No se pudo actualizar el precio: ${e.toString()}',
+              ),
+              actions: [
+                Button(
+                  child: const Text('Cerrar'),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            );
+          },
+        );
       }
     }
   }
