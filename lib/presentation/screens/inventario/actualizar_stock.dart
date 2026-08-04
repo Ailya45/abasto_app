@@ -25,7 +25,7 @@ class _AjustarStockDialogState extends ConsumerState<AjustarStockDialog> {
   final List<String> _motivosSumarResta = [
     'Compra / Nuevo Lote',
     'Mercancía Dañada / Vencida',
-    'Devolución de Cliente',
+    'Consumo propio',
   ];
 
   final List<String> _motivosConteoFisico = [

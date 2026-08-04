@@ -3,6 +3,7 @@ class Venta {
   final String metodoPago;
   final double montoTotalDolar;
   final double montoTotalBs;
+  final double tasaDolarUsada;
   final DateTime date;
 
   Venta({
@@ -10,6 +11,7 @@ class Venta {
     required this.metodoPago,
     required this.montoTotalDolar,
     required this.montoTotalBs,
+    required this.tasaDolarUsada,
     required this.date,
   });
 }

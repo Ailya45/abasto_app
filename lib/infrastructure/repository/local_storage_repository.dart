@@ -1,6 +1,8 @@
 import 'package:abasto_app/domain/datasource/local_storage_datasource.dart';
+import 'package:abasto_app/domain/entities/facturacion.dart';
 import 'package:abasto_app/domain/entities/movimiento_inventario.dart';
 import 'package:abasto_app/domain/entities/product.dart';
+import 'package:abasto_app/domain/entities/venta.dart';
 import 'package:abasto_app/domain/repository/local_storage_repository.dart';
 
 class LocalStorageRepositoryImpl extends LocalStorageRepository {
@@ -66,5 +68,38 @@ class LocalStorageRepositoryImpl extends LocalStorageRepository {
   @override
   Stream<List<MovimientoInventario>> watchInventarioMovimientos() {
     return datasource.watchInventarioMovimientos();
+  }
+
+  @override
+  Future<Product?> getProductByBarcode(String barcode) {
+    return datasource.getProductByBarcode(barcode);
+  }
+
+  @override
+  Future<void> registrarVenta({
+    required Venta venta,
+    required List<Facturacion> detalle,
+  }) {
+    return datasource.registrarVenta(venta: venta, detalle: detalle);
+  }
+
+  @override
+  Future<List<Facturacion>> getDetalleVenta(String ventaId) {
+    return datasource.getDetalleVenta(ventaId);
+  }
+
+  @override
+  Stream<List<Venta>> watchAllVentas() {
+    return datasource.watchAllVentas();
+  }
+
+  @override
+  Future<String?> getConfigValue(String clave) {
+    return datasource.getConfigValue(clave);
+  }
+
+  @override
+  Future<void> setConfigValue(String clave, String valor) {
+    return datasource.setConfigValue(clave, valor);
   }
 }
