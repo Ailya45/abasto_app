@@ -1,6 +1,6 @@
 import 'package:abasto_app/presentation/providers/facturacion/facturacion_provider.dart';
-import 'package:abasto_app/presentation/screens/facturacion/panel_tabla_facturacion.dart';
-import 'package:abasto_app/presentation/screens/facturacion/resumen_pago_panel.dart';
+import 'package:abasto_app/presentation/screens/desktop/facturacion/panel_tabla_facturacion.dart';
+import 'package:abasto_app/presentation/screens/desktop/facturacion/resumen_pago_panel.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

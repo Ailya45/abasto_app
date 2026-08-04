@@ -1,8 +1,8 @@
 import 'package:abasto_app/domain/entities/product.dart';
 import 'package:abasto_app/presentation/providers/inventario/stream_product_provider.dart';
 import 'package:abasto_app/presentation/providers/productos/product_provider.dart';
-import 'package:abasto_app/presentation/screens/inventario/actualizar_stock.dart';
-import 'package:abasto_app/presentation/screens/inventario/editar_precio.dart';
+import 'package:abasto_app/presentation/screens/desktop/inventario/actualizar_stock.dart';
+import 'package:abasto_app/presentation/screens/desktop/inventario/editar_precio.dart';
 import 'package:abasto_app/presentation/widgets/custom_table_widget.dart';
 import 'package:abasto_app/presentation/widgets/glass_card.dart';
 import 'package:fluent_ui/fluent_ui.dart';

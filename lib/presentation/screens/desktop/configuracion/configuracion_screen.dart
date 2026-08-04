@@ -1,6 +1,6 @@
-import 'package:abasto_app/presentation/screens/configuracion/sections/apariencia_section.dart';
-import 'package:abasto_app/presentation/screens/configuracion/sections/base_datos_section.dart';
-import 'package:abasto_app/presentation/screens/configuracion/sections/informacion_negocio_section.dart';
+import 'package:abasto_app/presentation/screens/desktop/configuracion/sections/apariencia_section.dart';
+import 'package:abasto_app/presentation/screens/desktop/configuracion/sections/base_datos_section.dart';
+import 'package:abasto_app/presentation/screens/desktop/configuracion/sections/informacion_negocio_section.dart';
 import 'package:abasto_app/presentation/widgets/glass_card.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 
